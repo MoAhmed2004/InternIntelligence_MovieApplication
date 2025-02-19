@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:movie_app/api/api.dart';
 import 'package:movie_app/model/movie.dart';
-import 'package:movie_app/screens/details.dart';
+import 'package:movie_app/screens/details_screen.dart';
 
 class SearchResultsScreen extends StatelessWidget {
   final String query;
@@ -13,7 +13,7 @@ class SearchResultsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          title: Text('Search Results'),
+          title: const Text('Search Results'),
         ),
         body: FutureBuilder(
           future: api.searchMovies(query),
@@ -24,12 +24,12 @@ class SearchResultsScreen extends StatelessWidget {
               return Center(child: Text('Error: ${snapshot.error.toString()}'));
             } else
             if (!snapshot.hasData || (snapshot.data as List<Movie>).isEmpty) {
-              return Center(child: Text('No results found'));
+              return const Center(child: Text('No results found'));
             } else {
               final data = snapshot.data as List<Movie>;
               return GridView.builder(
                 padding: const EdgeInsets.all(8.0),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
                   crossAxisSpacing: 8.0,
                   mainAxisSpacing: 8.0,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:movie_app/api/api.dart';
 import 'package:movie_app/model/movie.dart';
-import 'package:movie_app/screens/details.dart';
+import 'package:movie_app/screens/details_screen.dart';
 
 class TopRatedMoviesScreen extends StatefulWidget {
   const TopRatedMoviesScreen({Key? key}) : super(key: key);
