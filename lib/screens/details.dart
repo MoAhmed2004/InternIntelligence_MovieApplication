@@ -71,6 +71,8 @@ class DetailsScreen extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      Spacer(),
+                      Text("Genres: (${movie.genres.join(', ')})")
                     ],
                   ),
                   const SizedBox(height: 20),
