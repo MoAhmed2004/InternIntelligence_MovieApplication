@@ -8,7 +8,7 @@ class Movie {
   double voteAverage;
   final List<String> genres;
   final double rating;
-
+  final int? id;
 
 
   Movie({
@@ -21,6 +21,7 @@ class Movie {
     required this.voteAverage,
     required this.genres,
     required this.rating,
+    this.id,
   });
 
   factory Movie.FromJson(Map<String, dynamic> json) {
@@ -35,6 +36,7 @@ class Movie {
           .toDouble(),
       genres: List<String>.from(json['genre_ids'].map((id) => genreMap[id])),
       rating: (json['vote_average'] ?? 0.0).toDouble(),
+        id: json['id'],
     );
   }
 
