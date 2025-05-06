@@ -10,8 +10,9 @@ class Api {
   Future<List<Movie>> _fetchMovies(String endpoint) async {
     final response = await http.get(Uri.parse("$_baseUrl$endpoint$_apiKey"));
     if (response.statusCode == 200) {
-      final decodedData = jsonDecode(response.body)['results'] as List;
-      return decodedData.map((movie) => Movie.FromJson(movie)).toList();
+      final decodedData = jsonDecode(response.body);
+      if (decodedData == null || decodedData["results"] == null) return [];
+      return (decodedData['results'] as List).map((movie) => Movie.fromJson(movie)).toList();
     } else {
       throw Exception("Failed to load data");
     }
@@ -28,7 +29,7 @@ class Api {
     if (response.statusCode == 200) {
       final decodedData = jsonDecode(response.body);
       if (decodedData == null || decodedData["results"] == null) return [];
-      return (decodedData["results"] as List).map((movie) => Movie.FromJson(movie)).toList();
+      return (decodedData["results"] as List).map((movie) => Movie.fromJson(movie)).toList();
     } else {
       throw Exception("Failed to load data");
     }
@@ -38,45 +39,60 @@ class Api {
     final url = "$_baseUrl/movie/$movieId/videos$_apiKey";
     final response = await http.get(Uri.parse(url));
     if (response.statusCode == 200) {
-      final decodedData = jsonDecode(response.body)['results'] as List;
-      final trailer = decodedData.firstWhere(
-            (video) => video['type'] == 'Trailer' && video['site'] == 'YouTube',
-        orElse: () => null,
-      );
-      return trailer != null ? "https://www.youtube.com/watch?v=${trailer['key']}" : null;
+      final decodedData = jsonDecode(response.body);
+      if (decodedData == null || decodedData["results"] == null) return null;
+
+      final results = decodedData['results'] as List;
+      if (results.isEmpty) return null;
+
+      for (var video in results) {
+        if (video['type'] == 'Trailer' && video['site'] == 'YouTube') {
+          return "https://www.youtube.com/watch?v=${video['key']}";
+        }
+      }
+      return null;
     }
     return null;
   }
+
   Future<List<Movie>> getSimilarMovies(int movieId) async {
-    final response = await http.get(Uri.parse("$_baseUrl/movie/$movieId/similar$_apiKey"));
-    if (response.statusCode == 200) {
-      final decodedData = jsonDecode(response.body)['results'] as List;
-      return decodedData.map((movie) => Movie.FromJson(movie)).toList();
-    } else {
-      throw Exception("Failed to load similar movies");
+    try {
+      final response = await http.get(Uri.parse("$_baseUrl/movie/$movieId/similar$_apiKey"));
+      if (response.statusCode == 200) {
+        final decodedData = jsonDecode(response.body);
+        if (decodedData == null || decodedData["results"] == null) return [];
+        return (decodedData['results'] as List).map((movie) => Movie.fromJson(movie)).toList();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      return [];
     }
   }
-
 
   Future<List<Map<String, String>>> getCast(int movieId) async {
-    final url = "$_baseUrl/movie/$movieId/credits$_apiKey";
-    final response = await http.get(Uri.parse(url));
+    try {
+      final url = "$_baseUrl/movie/$movieId/credits$_apiKey";
+      final response = await http.get(Uri.parse(url));
 
-    if (response.statusCode == 200) {
-      final castList = jsonDecode(response.body)['cast'] as List;
+      if (response.statusCode == 200) {
+        final decodedData = jsonDecode(response.body);
+        if (decodedData == null || decodedData["cast"] == null) return [];
 
-      return castList
-          .where((actor) => actor['profile_path'] != null)
-          .map((actor) => {
-        'name': actor['name'].toString(),
-        'character': actor['character']?.toString() ?? 'Unknown role',
-        'photo': "${Constant.imageUrl}${actor['profile_path']}",
-      })
-          .toList();
-    } else {
-      throw Exception("Failed to load cast");
+        final castList = decodedData['cast'] as List;
+        return castList
+            .where((actor) => actor['profile_path'] != null)
+            .map((actor) => {
+          'name': actor['name']?.toString() ?? 'Unknown',
+          'character': actor['character']?.toString() ?? 'Unknown role',
+          'photo': "${Constant.imageUrl}${actor['profile_path']}",
+        })
+            .toList();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      return [];
     }
   }
-
-
 }

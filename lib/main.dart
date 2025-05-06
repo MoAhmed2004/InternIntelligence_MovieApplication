@@ -1,13 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:movie_app/firebase_options.dart';
 import 'package:movie_app/screens/home_screen.dart';
+import 'package:movie_app/login/login_screen.dart';
 import 'package:movie_app/screens/top_rated_movies_screen.dart';
 import 'package:movie_app/screens/upcoming_movies_screen.dart';
-import 'package:movie_app/tabs/homeScreen_tab.dart';
+import 'package:movie_app/signup/register_screen.dart';
+import 'package:movie_app/screens/profile_screen.dart';
+import 'package:movie_app/tabs/home_tab.dart';
+import 'package:provider/provider.dart';
+import 'package:movie_app/favorite_manager.dart';
 
-import 'app_color.dart';
-
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => FavoriteManager(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -16,17 +31,49 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'MovieNest',
       debugShowCheckedModeBanner: false,
-      title: 'Movie App',
       theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: Colours.scaffoldBgColor,
+        scaffoldBackgroundColor: Colors.black,
       ),
       routes: {
-        HomeTab.routeName: (context) =>  HomeScreenTab(),
-        TopRatedMoviesScreen.routeName: (context) => const TopRatedMoviesScreen(),
-        UpComingMoviesScreen.routeName: (context) => const UpComingMoviesScreen(),
+        LoginScreen.routeName: (_) => const LoginScreen(),
+        RegisterScreen.routeName: (_) => const RegisterScreen(),
+        HomeTab.routeName: (_) => HomeScreenTab(),
+        ProfileScreen.routeName: (_) => const ProfileScreen(),
+        TopRatedMoviesScreen.routeName: (_) => const TopRatedMoviesScreen(),
+        UpComingMoviesScreen.routeName: (_) => const UpComingMoviesScreen(),
       },
-      initialRoute: HomeTab.routeName,
+      home: const AuthGate(),
+    );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            backgroundColor: Colors.black,
+            body: Center(
+              child: CircularProgressIndicator(color: Colors.red),
+            ),
+          );
+        }
+
+        if (snapshot.hasData) {
+          // ✅ Load user-specific favorites
+          Provider.of<FavoriteManager>(context, listen: false).loadFavorites();
+          return HomeScreenTab();
+        } else {
+          return const LoginScreen();
+        }
+      },
     );
   }
 }

@@ -4,7 +4,10 @@ import 'package:movie_app/api/api.dart';
 import 'package:movie_app/app_color.dart';
 import 'package:movie_app/constant.dart';
 import 'package:movie_app/model/movie.dart';
-import 'package:movie_app/screens/favorite_manager.dart';
+import 'package:movie_app/favorite_manager.dart';
+import 'package:movie_app/widgets/cast.dart';
+import 'package:movie_app/widgets/similar_movie.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class DetailsScreen extends StatefulWidget {
@@ -16,27 +19,31 @@ class DetailsScreen extends StatefulWidget {
 }
 
 class _DetailsScreenState extends State<DetailsScreen> {
-  late Future<List<Map<String, String>>> _cast;
   late Future<String?> _trailerUrl;
-  late Future<List<Movie>> _similarMovies;
   final Api _api = Api();
   bool isFav = false;
 
   @override
   void initState() {
     super.initState();
-    _cast = _api.getCast(widget.movie.id??0);
-    _trailerUrl = _api.getTrailerUrl(widget.movie.id??0);
-    _similarMovies = _api.getSimilarMovies(widget.movie.id??0);
-    isFav = FavoriteManager.isFavorite(widget.movie);
+    _trailerUrl = _api.getTrailerUrl(widget.movie.id ?? 0);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      setState(() {
+        isFav = Provider.of<FavoriteManager>(context, listen: false)
+            .isFavorite(widget.movie);
+      });
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       body: CustomScrollView(
         slivers: [
           SliverAppBar.large(
+            backgroundColor: Colors.black,
             leading: Container(
               height: 70,
               width: 70,
@@ -47,7 +54,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
               ),
               child: IconButton(
                 onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.arrow_back_ios_new),
+                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
               ),
             ),
             expandedHeight: 300,
@@ -58,15 +65,25 @@ class _DetailsScreenState extends State<DetailsScreen> {
                   color: isFav ? Colors.red : Colors.white,
                 ),
                 onPressed: () {
+                  final favManager = Provider.of<FavoriteManager>(context, listen: false);
+
                   setState(() {
-                    FavoriteManager.toggleFavorite(widget.movie);
-                    isFav = !isFav;
+                    if (isFav) {
+                      favManager.removeFavorite(widget.movie);
+                      isFav = false;
+                    } else {
+                      favManager.addFavorite(widget.movie);
+                      isFav = true;
+                    }
                   });
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text(isFav
-                        ? 'Added to Favorites'
-                        : 'Removed from Favorites'),
-                  ));
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        isFav ? 'Added to Favorites' : 'Removed from Favorites',
+                      ),
+                    ),
+                  );
                 },
               ),
             ],
@@ -76,10 +93,29 @@ class _DetailsScreenState extends State<DetailsScreen> {
                   bottomLeft: Radius.circular(20),
                   bottomRight: Radius.circular(20),
                 ),
-                child: Image.network(
+                child: widget.movie.backDropPath != null
+                    ? Image.network(
                   "${Constant.imageUrl}${widget.movie.backDropPath}",
-                  fit: BoxFit.fitWidth,
+                  fit: BoxFit.cover,
                   filterQuality: FilterQuality.high,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.grey.shade800,
+                      child: const Icon(
+                        Icons.movie,
+                        size: 100,
+                        color: Colors.white70,
+                      ),
+                    );
+                  },
+                )
+                    : Container(
+                  color: Colors.grey.shade800,
+                  child: const Icon(
+                    Icons.movie,
+                    size: 100,
+                    color: Colors.white70,
+                  ),
                 ),
               ),
             ),
@@ -104,184 +140,59 @@ class _DetailsScreenState extends State<DetailsScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  Text("Genres: (${widget.movie.genres.join(', ')})"),
-                  const SizedBox(height: 20),
-                  Text(widget.movie.overview,
-                      style: GoogleFonts.aBeeZee(fontSize: 18)),
-                  const SizedBox(height: 20),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                      borderRadius: BorderRadius.circular(10),
+                  if (widget.movie.releaseDate.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade800,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text("Release Date: ${widget.movie.releaseDate}",
+                            style: GoogleFonts.roboto(
+                                fontSize: 12, color: Colors.white)),
+                      ),
                     ),
-                    child: Text("Release Date: ${widget.movie.releaseDate}",
-                        style: GoogleFonts.roboto(fontSize: 18)),
-                  ),
-
+                  if (widget.movie.genres.isNotEmpty)
+                    Text("Genres: ${widget.movie.genres.join(', ')}",
+                        style: const TextStyle(color: Colors.white)),
+                  const SizedBox(height: 10),
+                  Text(widget.movie.overview,
+                      style: GoogleFonts.aBeeZee(
+                          fontSize: 18, color: Colors.white70)),
                   const SizedBox(height: 24),
                   Text("Cast",
                       style: GoogleFonts.aBeeZee(
-                          fontSize: 22, fontWeight: FontWeight.bold)),
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red)),
                   const SizedBox(height: 16),
-                  FutureBuilder<List<Map<String, String>>>(
-                    future: _cast,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const SizedBox(
-                          height: 180,
-                          child: Center(child: CircularProgressIndicator()),
-                        );
-                      }
-                      if (snapshot.hasError) {
-                        return Text("Error loading cast: ${snapshot.error}");
-                      }
-                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return const Text("No cast information available");
-                      }
-
-                      final cast = snapshot.data!;
-                      return SizedBox(
-                        height: 210,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: cast.length,
-                          itemBuilder: (context, index) {
-                            final actor = cast[index];
-                            return Container(
-                              width: 120,
-                              margin: const EdgeInsets.only(right: 14),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Image.network(
-                                      actor['photo']!,
-                                      height: 150,
-                                      width: 120,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return Container(
-                                          height: 150,
-                                          width: 120,
-                                          color: Colors.grey.shade800,
-                                          child: const Icon(
-                                            Icons.person,
-                                            size: 50,
-                                            color: Colors.white70,
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    actor['name']!,
-                                    style: GoogleFonts.aBeeZee(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Text(
-                                    actor['character']!,
-                                    style: GoogleFonts.aBeeZee(
-                                      fontSize: 12,
-                                      color: Colors.grey[400],
-                                    ),
-                                    textAlign: TextAlign.center,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  ),
-
+                  CastList(movie: widget.movie),
                   const SizedBox(height: 30),
                   Text("Similar Movies",
                       style: GoogleFonts.aBeeZee(
-                          fontSize: 22, fontWeight: FontWeight.bold)),
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red)),
                   const SizedBox(height: 16),
-                  FutureBuilder<List<Movie>>(
-                    future: _similarMovies,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-                        return const Text("No similar movies found.");
-                      }
-                      final similar = snapshot.data!;
-                      return SizedBox(
-                        height: 200,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: similar.length,
-                          itemBuilder: (context, index) {
-                            final movie = similar[index];
-                            return GestureDetector(
-                              onTap: () {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => DetailsScreen(movie: movie),
-                                  ),
-                                );
-                              },
-                              child: Container(
-                                width: 120,
-                                margin: const EdgeInsets.only(right: 14),
-                                child: Column(
-                                  children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(10),
-                                      child: Image.network(
-                                        "${Constant.imageUrl}${movie.posterPath}",
-                                        height: 160,
-                                        width: 120,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 5),
-                                    Text(
-                                      movie.title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      textAlign: TextAlign.center,
-                                      style: GoogleFonts.aBeeZee(fontSize: 13),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  ),
+                  SimilarMovie(movie: widget.movie),
+
                 ],
               ),
             ),
           ),
         ],
       ),
-      floatingActionButton: FutureBuilder<String?> (
+      floatingActionButton: FutureBuilder<String?>(
         future: _trailerUrl,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.done && snapshot.hasData && snapshot.data != null) {
+          if (snapshot.connectionState == ConnectionState.done &&
+              snapshot.hasData &&
+              snapshot.data != null) {
+            final uri = Uri.parse(snapshot.data!);
             return FloatingActionButton.extended(
               onPressed: () async {
-                final url = snapshot.data!;
-                final uri = Uri.parse(url);
                 if (await canLaunchUrl(uri)) {
                   await launchUrl(uri, mode: LaunchMode.externalApplication);
                 } else {

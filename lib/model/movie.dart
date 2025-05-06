@@ -10,7 +10,6 @@ class Movie {
   final double rating;
   final int? id;
 
-
   Movie({
     required this.title,
     required this.backDropPath,
@@ -24,7 +23,10 @@ class Movie {
     this.id,
   });
 
-  factory Movie.FromJson(Map<String, dynamic> json) {
+  factory Movie.fromJson(Map<String, dynamic> json) {
+    List<int> genreIds = List<int>.from(json["genre_ids"] ?? []);
+    List<String> genreNames = genreIds.map((id) => genreMap[id] ?? 'Unknown').toList();
+
     return Movie(
       title: json["title"] ?? "Unknown Title",
       backDropPath: json["backdrop_path"] ?? "",
@@ -32,14 +34,12 @@ class Movie {
       overview: json["overview"] ?? "No overview available.",
       posterPath: json["poster_path"] ?? "",
       releaseDate: json["release_date"] ?? "Unknown",
-      voteAverage: (json["vote_average"] ?? 0.0)
-          .toDouble(),
-      genres: List<String>.from(json['genre_ids'].map((id) => genreMap[id])),
+      voteAverage: (json["vote_average"] ?? 0.0).toDouble(),
+      genres: genreNames,
       rating: (json['vote_average'] ?? 0.0).toDouble(),
-        id: json['id'],
+      id: json['id'],
     );
   }
-
 
   Map<String, dynamic> toJson() => {
     "title": title,
@@ -49,7 +49,11 @@ class Movie {
     "poster_path": posterPath,
     "release_date": releaseDate,
     "vote_average": voteAverage,
+    "genres": genres,
+    "rating": rating,
+    "id": id,
   };
+
   static const Map<int, String> genreMap = {
     28: 'Action',
     12: 'Adventure',
@@ -71,7 +75,4 @@ class Movie {
     10752: 'War',
     37: 'Western',
   };
-
-
 }
-
